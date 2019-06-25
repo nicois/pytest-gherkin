@@ -1,0 +1,10 @@
+site_name: pytest-gherkin
+site_description: A flexible framework for executing BDD gherkin tests
+site_author: Nick Farrell
+
+theme: readthedocs
+
+repo_url: https://github.com/nicois/pytest-gherkin
+
+pages:
+- Home: index.md
