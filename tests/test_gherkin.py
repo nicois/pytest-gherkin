@@ -1,60 +1,32 @@
 # -*- coding: utf-8 -*-
 
-
-def test_bar_fixture(testdir):
-    """Make sure that pytest accepts our fixture."""
-
-    # create a temporary pytest test module
-    testdir.makepyfile(
-        """
-        def test_sth(bar):
-            assert bar == "europython2015"
-    """
-    )
-
-    # run pytest with the following cmd args
-    result = testdir.runpytest("--foo=europython2015", "-v")
-
-    # fnmatch_lines does an assertion internally
-    result.stdout.fnmatch_lines(["*::test_sth PASSED*"])
-
-    # make sure that that we get a '0' exit code for the testsuite
-    assert result.ret == 0
+import pytest
+from pytest_gherkin import action, fixture
 
 
-def test_help_message(testdir):
-    result = testdir.runpytest("--help")
-    # fnmatch_lines does an assertion internally
-    result.stdout.fnmatch_lines(
-        ["gherkin:", '*--foo=DEST_FOO*Set the value for the fixture "bar".']
-    )
+@action("I have <n> <fruit>")
+def have(fruit, n: int, basket):
+    assert n >= 0
+    basket[fruit] = n
 
 
-def test_hello_ini_setting(testdir):
-    testdir.makeini(
-        """
-        [pytest]
-        HELLO = world
-    """
-    )
+@action("I eat <m> <fruit>")
+def eat(m: int, fruit, basket):
+    assert m >= 0
+    basket[fruit] -= m
+    assert basket[fruit] >= 0
 
-    testdir.makepyfile(
-        """
-        import pytest
 
-        @pytest.fixture
-        def hello(request):
-            return request.config.getini('HELLO')
+@action("I have <m> <stuff> remaining")
+def have_remaining(m: int, stuff, basket):
+    assert basket[stuff] == m
 
-        def test_hello_world(hello):
-            assert hello == 'world'
-    """
-    )
 
-    result = testdir.runpytest("-v")
+@action("I have <x> things remaining")
+def have_things_remaining(x: int, basket):
+    assert sum(basket.values()) == x
 
-    # fnmatch_lines does an assertion internally
-    result.stdout.fnmatch_lines(["*::test_hello_world PASSED*"])
 
-    # make sure that that we get a '0' exit code for the testsuite
-    assert result.ret == 0
+@fixture(scope="function")
+def basket():
+    return dict()

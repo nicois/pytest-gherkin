@@ -24,7 +24,7 @@ setup(
     long_description=read("README.rst"),
     py_modules=["pytest_gherkin"],
     python_requires=">=3.6",
-    install_requires=["pytest>=3.5.0"],
+    install_requires=["pytest>=3.5.0", "gherkin-official>=4.1.3"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Framework :: Pytest",

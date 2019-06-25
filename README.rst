@@ -2,27 +2,9 @@
 pytest-gherkin
 ==============
 
-.. image:: https://img.shields.io/pypi/v/pytest-gherkin.svg
-    :target: https://pypi.org/project/pytest-gherkin
-    :alt: PyPI version
-
-.. image:: https://img.shields.io/pypi/pyversions/pytest-gherkin.svg
-    :target: https://pypi.org/project/pytest-gherkin
-    :alt: Python versions
-
-.. image:: https://travis-ci.org/nicois/pytest-gherkin.svg?branch=master
-    :target: https://travis-ci.org/nicois/pytest-gherkin
-    :alt: See Build Status on Travis CI
-
-.. image:: https://ci.appveyor.com/api/projects/status/github/nicois/pytest-gherkin?branch=master
-    :target: https://ci.appveyor.com/project/nicois/pytest-gherkin/branch/master
-    :alt: See Build Status on AppVeyor
+[![Build Status](https://travis-ci.com/nicois/pytest-gherkin.svg?branch=master)](https://travis-ci.com/nicois/pytest-gherkin)
 
 A flexible framework for executing BDD gherkin tests
-
-----
-
-This `pytest`_ plugin was generated with `Cookiecutter`_ along with `@hackebrot`_'s `cookiecutter-pytest-plugin`_ template.
 
 
 Features
