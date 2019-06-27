@@ -2,7 +2,8 @@
 pytest-gherkin
 ==============
 
-[![Build Status](https://travis-ci.com/nicois/pytest-gherkin.svg?branch=master)](https://travis-ci.com/nicois/pytest-gherkin)
+.. image:: https://travis-ci.com/nicois/pytest-gherkin.svg?branch=master
+    :target: https://travis-ci.com/nicois/pytest-gherkin
 
 A flexible framework for executing BDD gherkin tests
 

@@ -22,7 +22,7 @@ setup(
     url="https://github.com/nicois/pytest-gherkin",
     description="A flexible framework for executing BDD gherkin tests",
     long_description=read("README.rst"),
-    py_modules=["pytest_gherkin"],
+    packages=["pytest_gherkin"],
     python_requires=">=3.6",
     install_requires=["pytest>=3.5.0", "gherkin-official>=4.1.3"],
     classifiers=[
@@ -42,5 +42,5 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    entry_points={"pytest11": ["gherkin = pytest_gherkin"]},
+    entry_points={"pytest11": ["gherkin = pytest_gherkin.gherkin"]},
 )

@@ -18,14 +18,6 @@ _FIXTURES = dict()
 _ACTION_REGEX = re.compile(r"<([^>]+)>")
 
 
-@pytest.fixture(autouse=True)
-def _install_request(request):
-    assert False
-    _install_request.request = request
-    yield
-    del _install_request.request
-
-
 def pytest_collect_file(parent, path):
     if path.ext == ".feature":
         return FeatureFile(path, parent)
@@ -67,10 +59,9 @@ class FeatureFile(pytest.File):
 
             backgrounds = children.get("Background", [])
 
-            # FIXME: support non-outline
-            assert sorted(children) == ["Background", "ScenarioOutline"]
-
-            for scenario_outline in children["ScenarioOutline"]:
+            for scenario_index, scenario_outline in enumerate(
+                children["ScenarioOutline"]
+            ):
                 for example in self._get_example_sets(scenario_outline["examples"]):
                     example_values = "-".join([v for d in example for v in d.values()])
 
@@ -78,17 +69,32 @@ class FeatureFile(pytest.File):
                         name=scenario_outline["name"] + ": " + example_values,
                         parent=self,
                         spec=scenario_outline,
+                        scenario_index=scenario_index,
                         example=example,
                         backgrounds=backgrounds,
                     )
 
+            for scenario_index, scenario_outline in enumerate(
+                children["Scenario"], -1000000
+            ):
+                yield ScenarioOutline(
+                    name=scenario_outline["name"],
+                    parent=self,
+                    spec=scenario_outline,
+                    scenario_index=scenario_index,
+                    backgrounds=backgrounds,
+                )
+
 
 class ScenarioOutline(pytest.Item):
-    def __init__(self, *, name, parent, spec, example, backgrounds):
+    def __init__(
+        self, *, name, parent, spec, backgrounds, scenario_index, example=None
+    ):
         super().__init__(name, parent)
         self.spec = spec
-        self.example = example
+        self.example = example or []
         self.backgrounds = backgrounds
+        self.scenario_index = scenario_index
 
     def runtest(self):
         try:
@@ -138,7 +144,11 @@ class ScenarioOutline(pytest.Item):
                     if desired_kwarg in _FIXTURES:
                         arguments[desired_kwarg] = retrieve_fixture(
                             name=desired_kwarg,
-                            scope=dict(session=self.session, function=self.nodeid),
+                            scope=dict(
+                                session=self.session,
+                                function=self.nodeid,
+                                scenario=self.scenario_index,
+                            ),
                         )
                 result = apply_type_hints_to_arguments(
                     function=action.function, **arguments
@@ -170,11 +180,13 @@ def identity(anything):
 
 
 def apply_type_hints_to_arguments(function, **kw):
+    print("Applying to", function, kw)
     parms = signature(function).parameters
     new_arguments = {
         k: v if parms[k].annotation == Parameter.empty else parms[k].annotation(v)
         for k, v in kw.items()
     }
+    print("invoking", function, new_arguments)
     return function(**new_arguments)
 
 
@@ -222,9 +234,18 @@ def fixture(*, scope="function"):
 def retrieve_fixture(*, name, scope, _cache=dict()):
     # TODO: support scope other than function and session
     # TODO: support recursive resolution
-    print("scope", scope)
+    print("scope for ", name, scope)
     fn, fn_scope = _FIXTURES[name]
     scope_key = (fn, scope[fn_scope])
+    print("scope key", scope_key)
     if scope_key not in _cache:
-        _cache[scope_key] = fn()
+        kwargs = {
+            param: retrieve_fixture(name=param, scope=scope)
+            for param in signature(fn).parameters
+        }
+        print("kwargs for ", fn, kwargs)
+        result = fn(**kwargs)
+        assert result is not None, f"Fixture {name} returned no value!"
+        _cache[scope_key] = result
+    print("value for", name, "is", _cache[scope_key])
     return _cache[scope_key]

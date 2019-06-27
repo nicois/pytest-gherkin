@@ -3,9 +3,6 @@ Feature: name of a fruity feature
     I want to eat some fruit
     So that I grow strong
 
-    Background:
-        Given I have <17> <tomatoes>
-
     Scenario Outline: eat fruit and vegies
         Given I have <foo> <fruit>
         And I have <foo> <vegetable>
@@ -13,7 +10,6 @@ Feature: name of a fruity feature
         And I eat <bar> <vegetable>
         Then I have <baz> <fruit> remaining
         And I have <baz> <vegetable> remaining
-        And I have <17> <tomatoes> remaining
         And I have <total> things remaining
 
         Examples:
@@ -24,5 +20,5 @@ Feature: name of a fruity feature
 
         Examples:
             | foo | bar | baz | total |
-            | 10  | 4   |   6 |  29   |
-            | 8   | 3   |   5 |  27   |
+            | 10  | 4   |   6 |  12   |
+            | 8   | 3   |   5 |  10   |
