@@ -18,11 +18,6 @@ _FIXTURES = dict()
 _ACTION_REGEX = re.compile(r"<([^>]+)>")
 
 
-def pytest_collect_file(parent, path):
-    if path.ext == ".feature":
-        return FeatureFile(path, parent)
-
-
 class FeatureFile(pytest.File):
     def _get_example_sets(self, examples_list):
         """
@@ -97,68 +92,64 @@ class ScenarioOutline(pytest.Item):
         self.scenario_index = scenario_index
 
     def runtest(self):
-        try:
-            context = dict()
-            steps = []
-            for background in self.backgrounds:
-                steps.extend(background["steps"])
-            steps.extend(self.spec["steps"])
-            for step in steps:
-                # Identify the action which will handle this step, along
-                # with the parameter names which need to be passed in
-                # explicitly from the gherkin feature file
-                stripped_step = _ACTION_REGEX.sub("<>", step["text"])
-                step_arg_names = [
-                    match.group(1) for match in _ACTION_REGEX.finditer(step["text"])
-                ]
-                if stripped_step not in _AVAILABLE_ACTIONS:
-                    raise GherkinException(self, "Undefined step", stripped_step)
-                action = _AVAILABLE_ACTIONS[stripped_step]
+        context = dict()
+        steps = []
+        for background in self.backgrounds:
+            steps.extend(background["steps"])
+        steps.extend(self.spec["steps"])
+        for step in steps:
+            # Identify the action which will handle this step, along
+            # with the parameter names which need to be passed in
+            # explicitly from the gherkin feature file
+            stripped_step = _ACTION_REGEX.sub("<>", step["text"])
+            step_arg_names = [
+                match.group(1) for match in _ACTION_REGEX.finditer(step["text"])
+            ]
+            if stripped_step not in _AVAILABLE_ACTIONS:
+                raise GherkinException(self, "Undefined step", stripped_step)
+            action = _AVAILABLE_ACTIONS[stripped_step]
 
-                # This defines how examples are mapped into keywords for the
-                # step function
-                argument_map = dict(zip(step_arg_names, action.argument_names))
+            # This defines how examples are mapped into keywords for the
+            # step function
+            argument_map = dict(zip(step_arg_names, action.argument_names))
 
-                # add any extra args requested, which aren't specifically provided in params
-                desired_kwargs = set(signature(action.function).parameters)
-                arguments = {
-                    argument_map[example_key]: example_value
-                    for example_table in self.example
-                    for example_key, example_value in example_table.items()
-                    if argument_map.get(example_key) in desired_kwargs
-                }
+            # add any extra args requested, which aren't specifically provided in params
+            desired_kwargs = set(signature(action.function).parameters)
+            arguments = {
+                argument_map[example_key]: example_value
+                for example_table in self.example
+                for example_key, example_value in example_table.items()
+                if argument_map.get(example_key) in desired_kwargs
+            }
 
-                # Respect any literal values in the step, assuming that any token
-                # which didn't match an example is literal
-                for literal_argument_value, argument_name in argument_map.items():
-                    if argument_name not in arguments:
-                        arguments[argument_name] = literal_argument_value
+            # Respect any literal values in the step, assuming that any token
+            # which didn't match an example is literal
+            for literal_argument_value, argument_name in argument_map.items():
+                if argument_name not in arguments:
+                    arguments[argument_name] = literal_argument_value
 
-                for context_key, context_value in context.items():
-                    if context_key not in arguments and context_key in desired_kwargs:
-                        arguments[context_key] = context_value
-                desired_kwargs -= set(arguments)
-                for desired_kwarg in desired_kwargs:
-                    # TODO: get this argument from a fixture, using request,
-                    # when I have access to it
-                    if desired_kwarg in _FIXTURES:
-                        arguments[desired_kwarg] = retrieve_fixture(
-                            name=desired_kwarg,
-                            scope=dict(
-                                session=self.session,
-                                function=self.nodeid,
-                                scenario=self.scenario_index,
-                            ),
-                        )
-                result = apply_type_hints_to_arguments(
-                    function=action.function, **arguments
-                )
-                if isinstance(result, dict):
-                    # Update the context available for future steps with the result of this step
-                    context.update(result)
-        except Exception:
-            LOGGER.exception("Problem in pytest_gherkin")
-            raise
+            for context_key, context_value in context.items():
+                if context_key not in arguments and context_key in desired_kwargs:
+                    arguments[context_key] = context_value
+            desired_kwargs -= set(arguments)
+            for desired_kwarg in desired_kwargs:
+                # TODO: get this argument from a fixture, using request,
+                # when I have access to it
+                if desired_kwarg in _FIXTURES:
+                    arguments[desired_kwarg] = retrieve_fixture(
+                        name=desired_kwarg,
+                        scope=dict(
+                            session=self.session,
+                            function=self.nodeid,
+                            scenario=self.scenario_index,
+                        ),
+                    )
+            result = apply_type_hints_to_arguments(
+                item=self, function=action.function, **arguments
+            )
+            if isinstance(result, dict):
+                # Update the context available for future steps with the result of this step
+                context.update(result)
 
     def repr_failure(self, excinfo):
         """ called when self.runtest() raises an exception. """
@@ -179,21 +170,25 @@ def identity(anything):
     return anything
 
 
-def apply_type_hints_to_arguments(function, **kw):
-    print("Applying to", function, kw)
-    parms = signature(function).parameters
+def apply_type_hints_to_arguments(*, item, function, **kw):
+    sig = signature(function)
+    parms = sig.parameters
     new_arguments = {
         k: v if parms[k].annotation == Parameter.empty else parms[k].annotation(v)
         for k, v in kw.items()
     }
-    print("invoking", function, new_arguments)
+    try:
+        sig.bind(**new_arguments)
+    except TypeError as ex:
+        raise GherkinException(
+            item, f"Cannot execute {function.__name__}", ", ".join(ex.args)
+        )
     return function(**new_arguments)
 
 
 def map_arguments(*, arguments, typemap, default_type=identity):
     if typemap is None:
         return arguments
-    print(repr(typemap), arguments)
     return {k: typemap.get(k, default_type)(v) for k, v in arguments.items()}
 
 
@@ -232,20 +227,14 @@ def fixture(*, scope="function"):
 
 
 def retrieve_fixture(*, name, scope, _cache=dict()):
-    # TODO: support scope other than function and session
-    # TODO: support recursive resolution
-    print("scope for ", name, scope)
     fn, fn_scope = _FIXTURES[name]
     scope_key = (fn, scope[fn_scope])
-    print("scope key", scope_key)
     if scope_key not in _cache:
         kwargs = {
             param: retrieve_fixture(name=param, scope=scope)
             for param in signature(fn).parameters
         }
-        print("kwargs for ", fn, kwargs)
         result = fn(**kwargs)
         assert result is not None, f"Fixture {name} returned no value!"
         _cache[scope_key] = result
-    print("value for", name, "is", _cache[scope_key])
     return _cache[scope_key]

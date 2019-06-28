@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name="pytest-gherkin",
-    version="0.1.0",
+    version="0.1.1",
     author="Nick Farrell",
     author_email="nicholas.farrell@gmail.com",
     maintainer="Nick Farrell",
@@ -42,5 +42,5 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    entry_points={"pytest11": ["gherkin = pytest_gherkin.gherkin"]},
+    entry_points={"pytest11": ["gherkin = pytest_gherkin.plugin"]},
 )
