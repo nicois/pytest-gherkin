@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from collections import namedtuple
-from pytest_gherkin import action, fixture
+import pytest
+from pytest import fixture
+from pytest_gherkin import action
 
 
 @action("There are <n> solar systems")
@@ -22,7 +24,8 @@ def count_ss(galaxy, n: int):
 SolarSystem = namedtuple("SolarSystem", ["planets", "stars"])
 
 
-@fixture(scope="function")
+# this also exercises the 'bare' decorator
+@pytest.fixture
 def solar_system_factory():
     def create_solar_system(*, n_planets, n_stars=1):
         return SolarSystem(planets=n_planets, stars=n_stars)
@@ -31,7 +34,7 @@ def solar_system_factory():
 
 
 @fixture(scope="function")
-def galaxy(solar_system_factory):
+def galaxy(solar_system_factory, client):
     class Galaxy:
         def __init__(self):
             self.solar_systems = []
