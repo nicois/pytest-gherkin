@@ -92,24 +92,6 @@ class FeatureFile(pytest.File):
                 yield function
 
 
-# A modified of the class method from FixtureManager, to
-# regenerate the fixtureinfo object from a list of arguments,
-# instead of by inspecting a function
-def getfixtureinfo(self, node, func, cls, *, argnames):
-
-    usefixtures = itertools.chain.from_iterable(
-        mark.args for mark in node.iter_markers(name="usefixtures")
-    )
-    initialnames = tuple(usefixtures) + tuple(argnames)
-    fm = node.session._fixturemanager
-    initialnames, names_closure, arg2fixturedefs = fm.getfixtureclosure(
-        initialnames, node, ignore_args=self._get_direct_parametrize_args(node)
-    )
-    return FuncFixtureInfo(
-        tuple(argnames), initialnames, names_closure, arg2fixturedefs
-    )
-
-
 class ScenarioOutline(pytest.Function):
     def __init__(
         self, *, name, parent, spec, backgrounds, scenario_index, example=None
@@ -122,8 +104,6 @@ class ScenarioOutline(pytest.Function):
 
     def _getobj(self):
         def wrapper(request):
-            # assert False, repr(request)
-            # self._rrequest = request
             self._runtest(request=request)
 
         return wrapper
@@ -171,26 +151,12 @@ class ScenarioOutline(pytest.Function):
                         arguments[context_key] = context_value
                 desired_kwargs -= set(arguments)
 
-                # Manually refresh the request object, as though
-                # we were a function with these argument names
-                self._fixtureinfo = getfixtureinfo(
-                    self=self.session._fixturemanager,
-                    node=self,
-                    func=self.obj,
-                    cls=self.cls,
-                    argnames=desired_kwargs,
-                )
-                self.fixturenames = self._fixtureinfo.names_closure
-                self._initrequest()
                 for desired_kwarg in desired_kwargs:
                     fixturedef, = self.session._fixturemanager._arg2fixturedefs[
                         desired_kwarg
                     ]
                     self._request._compute_fixture_value(fixturedef)
-                    print(desired_kwarg, "is", fixturedef)
                     arguments[desired_kwarg] = fixturedef
-                # The following line raises an exception, as galaxy STILL isn't available
-                self._request.getfixturevalue("galaxy")
                 result = apply_type_hints_to_arguments(
                     item=self, function=action.function, **arguments
                 )
