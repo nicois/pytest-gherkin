@@ -11,7 +11,8 @@ from gherkin.parser import Parser
 from pprint import pformat
 import logging
 import pytest
-from _pytest.fixtures import FuncFixtureInfo
+from pytest import nodes
+from _pytest.fixtures import FuncFixtureInfo, FixtureManager
 
 
 LOGGER = logging.getLogger(__file__)
@@ -90,6 +91,13 @@ class FeatureFile(pytest.File):
                 for mark in MARKS:
                     function = getattr(pytest.mark, mark)(function)
                 yield function
+
+
+class MockFixtureManager(FixtureManager):
+    def _matchfactories(self, fixturedefs, nodeid):
+        for fixturedef in fixturedefs:
+            if nodes.ischildnode(fixturedef.baseid, nodeid):
+                yield fixturedef
 
 
 class ScenarioOutline(pytest.Function):
