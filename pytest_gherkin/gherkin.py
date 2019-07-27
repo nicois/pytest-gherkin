@@ -19,8 +19,6 @@ _AVAILABLE_ACTIONS = dict()
 _ACTION_REGEX = re.compile(r"<([^>]+)>")
 MARKS = set()
 
-print("available actions is ", len(_AVAILABLE_ACTIONS), " long")
-
 
 class FeatureFile(pytest.File):
     def _get_example_sets(self, examples_list):
@@ -123,14 +121,13 @@ class ScenarioOutline(pytest.Function):
 
     def _getobj(self):
         def wrapper(request):
-            # assert False, repr(request)
-            # self._rrequest = request
             self._runtest(request=request)
 
         return wrapper
 
     def _runtest(self, request):
         assert len(_AVAILABLE_ACTIONS) > 0
+        print("available actions is ", len(_AVAILABLE_ACTIONS), " long")
         try:
             context = dict()
             steps = []
@@ -177,6 +174,7 @@ class ScenarioOutline(pytest.Function):
                 print("desired", desired_kwargs)
                 print("arg", arguments)
 
+                """
                 # FIXME: I am not sure I should be doing this here
                 # Manually refresh the request object, as though
                 # we were a function with these argument names
@@ -189,6 +187,7 @@ class ScenarioOutline(pytest.Function):
                 )
                 self.fixturenames = self._fixtureinfo.names_closure
                 self._initrequest()
+                """
 
                 # Any kwargs this step needs, which haven't been
                 # fulfilled via the context or literal values,
@@ -303,6 +302,7 @@ def action(name):
         _AVAILABLE_ACTIONS[stripped_name] = Action(
             function=fn, argument_names=arg_names
         )
+        print(f"adding action {name} to AA with {fn}")
         return fn
 
     return decorator

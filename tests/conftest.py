@@ -21,7 +21,7 @@ def solar_system_factory():
 
 
 @fixture(scope="function")
-def galaxy(solar_system_factory, client):
+def galaxy(solar_system_factory):
     class Galaxy:
         def __init__(self):
             self.solar_systems = []
