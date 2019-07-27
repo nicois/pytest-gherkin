@@ -185,36 +185,44 @@ class ScenarioOutline(pytest.Function):
                 self.fixturenames = self._fixtureinfo.names_closure
                 self._initrequest()
 
-                fixturedefs = dict()
-                for desired_kwarg in desired_kwargs:
-                    fixturedef, = self.session._fixturemanager._arg2fixturedefs[
-                        desired_kwarg
-                    ]
-                    # FIXME: this isn't being called properly, the scope is
-                    # being ignored, and always treated as function
-                    # value = self._request._compute_fixture_value(fixturedef)
-                    # value = fixturedef.func()
-                    value = self._request.getfixturevalue("galaxy")
-                    print(desired_kwarg, "is", fixturedef, " with val ", value)
-                    arguments[desired_kwarg] = value
-                # The following line raises an exception, as galaxy STILL isn't available
+                arguments = self._resolve_arguments(desired_kwargs)
+
                 result = apply_type_hints_to_arguments(
                     item=self, function=action.function, **arguments
                 )
                 if isinstance(result, dict):
                     # Update the context available for future steps with the result of this step
                     context.update(result)
-        except:
-            LOGGER.exception("oops")
+        except Exception as ex:
+            print(ex)
+            print(ex)
+            import pdb
+
+            pdb.set_trace()
+            LOGGER.exception(f"oops: {ex}")
             raise
 
-    '''
+    def _resolve_arguments(self, fixture_names, _result=None):
+        if _result is None:
+            _result = dict()
+
+        for desired_kwarg in desired_kwargs:
+            fixturedef, = self.session._fixturemanager._arg2fixturedefs[desired_kwarg]
+            # FIXME: this isn't being called properly, the scope is
+            # being ignored, and always treated as function
+
+            # value = self._request._compute_fixture_value(fixturedef)
+            # value = self._request.getfixturevalue(desired_kwarg)
+            # value = fixturedef.func()
+            print(desired_kwarg, "is", fixturedef, " with val ", value)
+            arguments[desired_kwarg] = value
+        return result
+
     def repr_failure(self, excinfo):
         """ called when self.runtest() raises an exception. """
         if isinstance(excinfo.value, GherkinException):
             return ": ".join(excinfo.value.args[1:3])
         return f"Unexpected exception: {excinfo.value}"
-    '''
 
     def reportinfo(self):
         return self.fspath, 0, "Scenario: %s" % self.name
