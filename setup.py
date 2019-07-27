@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name="pytest-gherkin",
-    version="0.1.6",
+    version="0.1.7",
     author="Nick Farrell",
     author_email="nicholas.farrell@gmail.com",
     maintainer="Nick Farrell",
@@ -24,7 +24,7 @@ setup(
     long_description=read("README.rst"),
     packages=["pytest_gherkin"],
     python_requires=">=3.6",
-    install_requires=["pytest<=5.0.0", "gherkin-official>=4.1.3"],
+    install_requires=["pytest>=5.0.0", "gherkin-official>=4.1.3"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Framework :: Pytest",
