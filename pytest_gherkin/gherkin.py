@@ -148,6 +148,8 @@ class ScenarioOutline(pytest.Function):
                 if stripped_step not in _AVAILABLE_ACTIONS:
                     raise GherkinException(self, "Undefined step", stripped_step)
                 action = _AVAILABLE_ACTIONS[stripped_step]
+                print(f"action is {action}")
+                print("cx is", context)
 
                 # This defines how examples are mapped into keywords for the
                 # step function
@@ -172,6 +174,8 @@ class ScenarioOutline(pytest.Function):
                 # Remove any items in desired kwargs which have been
                 # fulfilled by the arguments collected so far
                 desired_kwargs -= set(arguments)
+                print("desired", desired_kwargs)
+                print("arg", arguments)
 
                 # FIXME: I am not sure I should be doing this here
                 # Manually refresh the request object, as though
@@ -193,6 +197,7 @@ class ScenarioOutline(pytest.Function):
 
                 # Apply any variables in our context which are desired and
                 # not yet provided
+                print("cx", context)
                 for context_key, context_value in context.items():
                     if context_key not in arguments and context_key in desired_kwargs:
                         arguments[context_key] = context_value
@@ -213,8 +218,8 @@ class ScenarioOutline(pytest.Function):
         It's OK if there are items in the context which are not required;
         they will be ignored.
         """
-
-        '''
+        remaining_kwargs = set(desired_kwargs) - set(context)
+        """
         # Make sure there are pytest fixtures for each unsatisfied
         # kwargs, and get the actual function
         fixture_map = {
@@ -223,41 +228,35 @@ class ScenarioOutline(pytest.Function):
             ].func
             for fixture_name in desired_kwargs
         }
-        '''
+        """
 
         # Find a fixture which doesn't depend on any other fixtures
-        while desired_kwargs:  # ie: is not empty
-            for fixture_name, fixture_func in fixture_map.items():
-                fixture_func_argument_names = set(signature(fixture_func).parameters)
-                deps = fixture_func_argument_names & fixture_map
-                if deps:
-                    # This depends on other fixtures in our map, so find another.
-                    print(f"{fixture_name} depends on {deps} so deferring..")
-                    continue
-
-                # OK we should be save to resolve this now
-                # FIXME: this isn't being called properly, the scope is
-                # being ignored, and always treated as function
-                value = self._request.getfixturevalue(fixture_name)
-                context[fixture_name] = value
-                del fixture_map[fixture_name]
+        while remaining_kwargs:  # ie: is not empty
+            print("x", remaining_kwargs)
+            for remaining_kwarg in remaining_kwargs:
+                value = self._request.getfixturevalue(remaining_kwarg)
+                context[remaining_kwarg] = value
+                remaining_kwargs.remove(remaining_kwarg)
+                print(f"added {value} to {remaining_kwarg!r}")
                 break
             else:
                 raise Exception("Circular reference detected")
 
             """
             # value = self._request._compute_fixture_value(fixturedef)
-            # value = self._request.getfixturevalue(desired_kwarg)
+            # value = self._request.getfixturevalue(remaining_kwarg)
             # value = fixturedef.func()
-            print(desired_kwarg, "is", fixturedef, " with val ", value)
-            arguments[desired_kwarg] = value
+            print(remaining_kwarg, "is", fixturedef, " with val ", value)
+            arguments[remaining_kwarg] = value
             """
 
+    '''
     def repr_failure(self, excinfo):
         """ called when self.runtest() raises an exception. """
         if isinstance(excinfo.value, GherkinException):
             return ": ".join(excinfo.value.args[1:3])
         return f"Unexpected exception: {excinfo.value}"
+    '''
 
     def reportinfo(self):
         return self.fspath, 0, "Scenario: %s" % self.name

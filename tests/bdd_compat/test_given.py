@@ -3,12 +3,12 @@ from pytest_gherkin.legacy import given, parse, then
 
 @given("a patient exists", target_fixture="patient")
 def a_patient():
-    return dict(patient=True)
+    return dict(patient=True, name="Fred", id="456")
 
 
 @given("a patient with <attr> equal to <value> exists", target_fixture="patient")
 def create_custom_attribute_patient(attr, value):
-    patient = dict(patient=True)
+    patient = dict(patient=True, name="Roger", id="123")
     patient[attr] = value
     return patient
 
