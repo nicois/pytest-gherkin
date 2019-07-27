@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from pytest_gherkin import action, fixture
+from pytest_gherkin import action
 
 
 @action("I have <n> <fruit>")
@@ -25,8 +25,3 @@ def have_remaining(m: int, stuff, basket):
 @action("I have <x> things remaining")
 def have_things_remaining(x: int, basket):
     assert sum(basket.values()) == x
-
-
-@fixture(scope="function")
-def basket():
-    return dict()

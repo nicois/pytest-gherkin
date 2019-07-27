@@ -16,9 +16,10 @@ from _pytest.fixtures import FuncFixtureInfo
 
 LOGGER = logging.getLogger(__file__)
 _AVAILABLE_ACTIONS = dict()
-_FIXTURES = dict()
 _ACTION_REGEX = re.compile(r"<([^>]+)>")
 MARKS = set()
+
+print("available actions is ", len(_AVAILABLE_ACTIONS), " long")
 
 
 class FeatureFile(pytest.File):
@@ -129,6 +130,7 @@ class ScenarioOutline(pytest.Function):
         return wrapper
 
     def _runtest(self, request):
+        assert len(_AVAILABLE_ACTIONS) > 0
         try:
             context = dict()
             steps = []
@@ -182,15 +184,20 @@ class ScenarioOutline(pytest.Function):
                 )
                 self.fixturenames = self._fixtureinfo.names_closure
                 self._initrequest()
+
+                fixturedefs = dict()
                 for desired_kwarg in desired_kwargs:
                     fixturedef, = self.session._fixturemanager._arg2fixturedefs[
                         desired_kwarg
                     ]
-                    self._request._compute_fixture_value(fixturedef)
-                    print(desired_kwarg, "is", fixturedef)
-                    arguments[desired_kwarg] = fixturedef
+                    # FIXME: this isn't being called properly, the scope is
+                    # being ignored, and always treated as function
+                    # value = self._request._compute_fixture_value(fixturedef)
+                    # value = fixturedef.func()
+                    value = self._request.getfixturevalue("galaxy")
+                    print(desired_kwarg, "is", fixturedef, " with val ", value)
+                    arguments[desired_kwarg] = value
                 # The following line raises an exception, as galaxy STILL isn't available
-                self._request.getfixturevalue("galaxy")
                 result = apply_type_hints_to_arguments(
                     item=self, function=action.function, **arguments
                 )
@@ -201,11 +208,13 @@ class ScenarioOutline(pytest.Function):
             LOGGER.exception("oops")
             raise
 
+    '''
     def repr_failure(self, excinfo):
         """ called when self.runtest() raises an exception. """
         if isinstance(excinfo.value, GherkinException):
             return ": ".join(excinfo.value.args[1:3])
         return f"Unexpected exception: {excinfo.value}"
+    '''
 
     def reportinfo(self):
         return self.fspath, 0, "Scenario: %s" % self.name
@@ -257,55 +266,5 @@ def action(name):
     return decorator
 
 
-def register(raw_fn=None):
-    """
-    Used to expose a pytest fixture without also
-    re-registering it with pytest, which pytest
-    would get upset about
-    """
-
-    def decorator(pytest_fixture):
-        scope = pytest_fixture._pytestfixturefunction.scope
-        assert scope in ["function", "session"]
-        name = pytest_fixture.__name__
-        fn = pytest_fixture.__wrapped__
-        assert name not in _FIXTURES
-        _FIXTURES[name] = (fn, scope)
-
-    if raw_fn is not None:
-        return decorator(pytest_fixture=raw_fn)
-    return decorator
-
-
 def add_mark(mark):
     MARKS.add(mark)
-
-
-def fixture(raw_fn=None, *, scope="function"):
-    assert scope in ["function", "session"]
-
-    def decorator(fn):
-        name = fn.__name__
-        assert name not in _FIXTURES
-        _FIXTURES[name] = (fn, scope)
-        # Also register it with the normal pytest fixture, in case
-        # anything else also wants it
-        return pytest.fixture(scope=scope)(fn)
-
-    if raw_fn is not None:
-        return decorator(fn=raw_fn)
-    return decorator
-
-
-def retrieve_fixture(*, name, scope, _cache=dict()):
-    fn, fn_scope = _FIXTURES[name]
-    scope_key = (fn, scope[fn_scope])
-    if scope_key not in _cache:
-        kwargs = {
-            param: retrieve_fixture(name=param, scope=scope)
-            for param in signature(fn).parameters
-        }
-        result = fn(**kwargs)
-        assert result is not None, f"Fixture {name} returned no value!"
-        _cache[scope_key] = result
-    return _cache[scope_key]

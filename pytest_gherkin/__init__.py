@@ -1,1 +1,1 @@
-from .gherkin import action, fixture, register
+from .gherkin import action

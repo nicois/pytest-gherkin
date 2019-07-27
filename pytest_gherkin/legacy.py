@@ -7,11 +7,8 @@ def parse(s):
 
 
 def legacy_step(text, target_fixture=None):
-    print("xx")
-
     def decorator(fn):
         result_key = target_fixture or fn.__name__
-        print("rk", result_key)
 
         @action(text)
         @wraps(fn)
