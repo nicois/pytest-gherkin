@@ -155,6 +155,7 @@ class ScenarioOutline(pytest.Function):
 
                 # add any extra args requested, which aren't specifically provided in params
                 desired_kwargs = set(signature(action.function).parameters)
+
                 arguments = {
                     argument_map[example_key]: example_value
                     for example_table in self.example
@@ -168,11 +169,11 @@ class ScenarioOutline(pytest.Function):
                     if argument_name not in arguments:
                         arguments[argument_name] = literal_argument_value
 
-                for context_key, context_value in context.items():
-                    if context_key not in arguments and context_key in desired_kwargs:
-                        arguments[context_key] = context_value
+                # Remove any items in desired kwargs which have been
+                # fulfilled by the arguments collected so far
                 desired_kwargs -= set(arguments)
 
+                # FIXME: I am not sure I should be doing this here
                 # Manually refresh the request object, as though
                 # we were a function with these argument names
                 self._fixtureinfo = getfixtureinfo(
@@ -185,7 +186,16 @@ class ScenarioOutline(pytest.Function):
                 self.fixturenames = self._fixtureinfo.names_closure
                 self._initrequest()
 
-                arguments = self._resolve_arguments(desired_kwargs)
+                # Any kwargs this step needs, which haven't been
+                # fulfilled via the context or literal values,
+                # need to come from normal pytest fixtures.
+                self._resolve_arguments(desired_kwargs=desired_kwargs, context=context)
+
+                # Apply any variables in our context which are desired and
+                # not yet provided
+                for context_key, context_value in context.items():
+                    if context_key not in arguments and context_key in desired_kwargs:
+                        arguments[context_key] = context_value
 
                 result = apply_type_hints_to_arguments(
                     item=self, function=action.function, **arguments
@@ -194,29 +204,54 @@ class ScenarioOutline(pytest.Function):
                     # Update the context available for future steps with the result of this step
                     context.update(result)
         except Exception as ex:
-            print(ex)
-            print(ex)
-            import pdb
-
-            pdb.set_trace()
             LOGGER.exception(f"oops: {ex}")
             raise
 
-    def _resolve_arguments(self, fixture_names, _result=None):
-        if _result is None:
-            _result = dict()
+    def _resolve_arguments(self, *, desired_kwargs, context) -> None:
+        """
+        Ensure the context has values for each of the desired kwargs.
+        It's OK if there are items in the context which are not required;
+        they will be ignored.
+        """
 
-        for desired_kwarg in desired_kwargs:
-            fixturedef, = self.session._fixturemanager._arg2fixturedefs[desired_kwarg]
-            # FIXME: this isn't being called properly, the scope is
-            # being ignored, and always treated as function
+        '''
+        # Make sure there are pytest fixtures for each unsatisfied
+        # kwargs, and get the actual function
+        fixture_map = {
+            fixture_name: self.session._fixturemanager._arg2fixturedefs[
+                fixture_name
+            ].func
+            for fixture_name in desired_kwargs
+        }
+        '''
 
+        # Find a fixture which doesn't depend on any other fixtures
+        while desired_kwargs:  # ie: is not empty
+            for fixture_name, fixture_func in fixture_map.items():
+                fixture_func_argument_names = set(signature(fixture_func).parameters)
+                deps = fixture_func_argument_names & fixture_map
+                if deps:
+                    # This depends on other fixtures in our map, so find another.
+                    print(f"{fixture_name} depends on {deps} so deferring..")
+                    continue
+
+                # OK we should be save to resolve this now
+                # FIXME: this isn't being called properly, the scope is
+                # being ignored, and always treated as function
+                value = self._request.getfixturevalue(fixture_name)
+                context[fixture_name] = value
+                del fixture_map[fixture_name]
+                break
+            else:
+                raise Exception("Circular reference detected")
+
+            """
             # value = self._request._compute_fixture_value(fixturedef)
             # value = self._request.getfixturevalue(desired_kwarg)
             # value = fixturedef.func()
             print(desired_kwarg, "is", fixturedef, " with val ", value)
             arguments[desired_kwarg] = value
-        return result
+            """
 
     def repr_failure(self, excinfo):
         """ called when self.runtest() raises an exception. """
